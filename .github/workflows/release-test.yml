@@ -17,8 +17,6 @@ jobs:
         include:
           - bin: gcc
             shared: on
-          - bin: gcc-static
-            shared: off
 
     steps:
     - name: Get the version
