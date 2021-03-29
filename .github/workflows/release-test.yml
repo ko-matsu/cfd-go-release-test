@@ -1,0 +1,68 @@
+name: release-test
+
+on: 
+  release:
+    types: [released]
+
+jobs:
+  upload-object-ubuntu:
+    name: upload-object-ubuntu
+    if: contains(github.ref, 'refs/tags/build/electron/test')
+    needs: create_releases
+    runs-on: ubuntu-${{ matrix.os_ver }}.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os_ver: [18]
+        bin: [gcc]
+        include:
+          - bin: gcc
+            shared: on
+          - bin: gcc-static
+            shared: off
+
+    steps:
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/build\/electron\/test\/}
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        repository: ko-matsu/cfd-go
+        path: ${{ github.GITHUB_WORKSPACE }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ steps.get_version.outputs.VERSION }}
+    - name: cmake-build
+      run: |
+        mkdir dist
+        mkdir build
+        cd build
+        cmake .. -DENABLE_SHARED=${{ matrix.shared }} -DENABLE_TESTS=off -DENABLE_JS_WRAPPER=off -DCMAKE_BUILD_TYPE=Release -DTARGET_RPATH="/usr/local/lib"
+        cd ..
+        cmake --build build --parallel 2 --config Release
+        cd build
+        sudo make install DESTDIR=../dist
+        cd ..
+      timeout-minutes: 20
+    - name: create archive file
+      run: |
+        cd dist
+        zip -r cfd.zip usr
+        echo "---- dump zip file ----"
+        ls -l
+    - name: go test
+      run: |
+        sudo unzip -q ./dist/cfd.zip -d /
+        LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" go test
+    - name: output url
+      id: get_url
+      run: echo "::set-output name=upload_url::${{ needs.create_releases.outputs.release_url }}"
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_url.outputs.upload_url }}
+        asset_path: ./dist/cfd.zip
+        asset_name: cfdgo-${{ steps.get_version.outputs.VERSION }}-ubuntu${{ matrix.os_ver }}04-${{ matrix.bin }}-x86_64.zip
+        asset_content_type: application/zip
