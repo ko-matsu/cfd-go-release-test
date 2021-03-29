@@ -8,7 +8,6 @@ jobs:
   upload-object-ubuntu:
     name: upload-object-ubuntu
     if: contains(github.ref, 'refs/tags/build/electron/test')
-    needs: create_releases
     runs-on: ubuntu-${{ matrix.os_ver }}.04
     strategy:
       fail-fast: false
