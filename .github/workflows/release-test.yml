@@ -53,9 +53,15 @@ jobs:
       run: |
         sudo unzip -q ./dist/cfd.zip -d /
         LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" go test
+    - name: Get release
+      if: steps.create_release.outcome == 'failure'
+      id: get_release
+      uses: bruceadams/get-release@v1.2.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: output url
       id: get_url
-      run: echo "::set-output name=upload_url::${{ needs.create_releases.outputs.release_url }}"
+      run: echo "::set-output name=upload_url::${{ steps.get_release.outputs.upload_url }}"
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1.0.1
       env:
